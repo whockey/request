@@ -281,6 +281,9 @@ Request.prototype.init = function (options) {
     self.path = self.uri.pathname + (self.uri.search || "")
   }
 
+  if(self.proxy_path)
+    self.path = self.proxy_path
+  
   if (self.path.length === 0) self.path = '/'
 
 
