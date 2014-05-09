@@ -1,3 +1,11 @@
+try {
+  require('tough-cookie')
+} catch (e) {
+  console.error('tough-cookie must be installed to run this test.')
+  console.error('skipping this test. please install tough-cookie and run again if you need to test this feature.')
+  process.exit(0)
+}
+
 var request = require('../index');
 var http = require('http');
 var requests = 0;
@@ -26,6 +34,7 @@ server.listen(6767);
 
 request.post({ url: 'http://localhost:6767/foo',
                followAllRedirects: true,
+               jar: true,
                form: { foo: 'bar' } }, function (er, req, body) {
   if (er) throw er;
   assert.equal(body, 'ok: 5');
