@@ -6,19 +6,13 @@ var assert = require('assert')
 var numBasicRequests = 0;
 
 var basicServer = http.createServer(function (req, res) {
-  console.error('Basic auth server: ', req.method, req.url);
+  console.error('Bearer auth server: ', req.method, req.url);
   numBasicRequests++;
 
   var ok;
 
   if (req.headers.authorization) {
-    if (req.headers.authorization == 'Basic ' + new Buffer('test:testing2').toString('base64')) {
-      ok = true;
-    } else if ( req.headers.authorization == 'Basic ' + new Buffer('test:').toString('base64')) {
-      ok = true;
-    } else if ( req.headers.authorization == 'Basic ' + new Buffer(':apassword').toString('base64')) {
-      ok = true;
-    } else if ( req.headers.authorization == 'Basic ' + new Buffer('justauser').toString('base64')) {
+    if (req.headers.authorization == 'Bearer theToken') {
       ok = true;
     } else {
       // Bad auth header, don't send back WWW-Authenticate header
@@ -27,7 +21,7 @@ var basicServer = http.createServer(function (req, res) {
   } else {
     // No auth header, send back WWW-Authenticate header
     ok = false;
-    res.setHeader('www-authenticate', 'Basic realm="Private"');
+    res.setHeader('www-authenticate', 'Bearer realm="Private"');
   }
 
   if (req.url == '/post/') {
@@ -59,8 +53,7 @@ var tests = [
       'method': 'GET',
       'uri': 'http://localhost:6767/test/',
       'auth': {
-        'user': 'test',
-        'pass': 'testing2',
+        'bearer': 'theToken',
         'sendImmediately': false
       }
     }, function(error, res, body) {
@@ -71,13 +64,12 @@ var tests = [
   },
 
   function(next) {
-    // If we don't set sendImmediately = false, request will send basic auth
+    // If we don't set sendImmediately = false, request will send bearer auth
     request({
       'method': 'GET',
       'uri': 'http://localhost:6767/test2/',
       'auth': {
-        'user': 'test',
-        'pass': 'testing2'
+        'bearer': 'theToken'
       }
     }, function(error, res, body) {
       assert.equal(res.statusCode, 200);
@@ -88,93 +80,71 @@ var tests = [
 
   function(next) {
     request({
-      'method': 'GET',
-      'uri': 'http://test:testing2@localhost:6767/test2/'
-    }, function(error, res, body) {
-      assert.equal(res.statusCode, 200);
-      assert.equal(numBasicRequests, 4);
-      next();
-    });
-  },
-
-  function(next) {
-    request({
       'method': 'POST',
       'form': { 'data_key': 'data_value' },
       'uri': 'http://localhost:6767/post/',
       'auth': {
-        'user': 'test',
-        'pass': 'testing2',
+        'bearer': 'theToken',
         'sendImmediately': false
       }
     }, function(error, res, body) {
       assert.equal(res.statusCode, 200);
-      assert.equal(numBasicRequests, 6);
+      assert.equal(numBasicRequests, 5);
       next();
     });
-  },
-
-  function(next) {
-    assert.doesNotThrow( function() {
-      request({
-        'method': 'GET',
-        'uri': 'http://localhost:6767/allow_empty_user/',
-        'auth': {
-          'user': '',
-          'pass': 'apassword',
-          'sendImmediately': false
-        }
-      }, function(error, res, body ) {
-        assert.equal(res.statusCode, 200);
-        assert.equal(numBasicRequests, 8);
-        next();
-      });
-    })
-  },
-
-  function(next) {
-    assert.doesNotThrow( function() {
-      request({
-        'method': 'GET',
-        'uri': 'http://localhost:6767/allow_undefined_password/',
-        'auth': {
-          'user': 'justauser',
-          'pass': undefined,
-          'sendImmediately': false
-        }
-      }, function(error, res, body ) {
-        assert.equal(res.statusCode, 200);
-        assert.equal(numBasicRequests, 10);
-        next();
-      });
-    })
   },
 
   function (next) {
     request
       .get('http://localhost:6767/test/')
-      .auth("test","",false)
+      .auth(null,null,false,"theToken")
       .on('response', function (res) {
         assert.equal(res.statusCode, 200);
-        assert.equal(numBasicRequests, 12);
+        assert.equal(numBasicRequests, 7);
         next();
       })
   },
 
   function (next) {
-    request.get('http://localhost:6767/test/',
-      {
-        auth: {
-          user: "test",
-          pass: "",
-          sendImmediately: false
-        }
-      }, function (err, res) {
+    request
+      .get('http://localhost:6767/test/')
+      .auth(null,null,true,"theToken")
+      .on('response', function (res) {
         assert.equal(res.statusCode, 200);
-        assert.equal(numBasicRequests, 14);
+        assert.equal(numBasicRequests, 8);
         next();
       })
-  }
+  },
+
+  function(next) {
+    request({
+      'method': 'GET',
+      'uri': 'http://localhost:6767/test/',
+      'auth': {
+        'bearer': function() { return 'theToken' },
+        'sendImmediately': false
+      }
+    }, function(error, res, body) {
+      assert.equal(res.statusCode, 200);
+      assert.equal(numBasicRequests, 10);
+      next();
+    });
+  },
+
+  function(next) {
+    // If we don't set sendImmediately = false, request will send bearer auth
+    request({
+      'method': 'GET',
+      'uri': 'http://localhost:6767/test2/',
+      'auth': {
+        'bearer': function() { return 'theToken' }
+      }
+    }, function(error, res, body) {
+      assert.equal(res.statusCode, 200);
+      assert.equal(numBasicRequests, 11);
+      next();
+    });
+  },
 ];
 
 function runTest(i) {
